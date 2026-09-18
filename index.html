@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提出物リマインダー - 課題・提出物管理 Web App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icon Library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar styling for clean interface */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Fade-in and scale animations for modals */
+        .modal-fade-in {
+            animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <!-- Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <!-- App Title & Logo Icon -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/30">
+                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-none">提出物リマインダー</h1>
+                        <p class="text-xs text-slate-500 mt-0.5">GitHub Pages & Firebase 連動型課題トラッカー</p>
+                    </div>
+                </div>
+
+                <!-- Google Auth Controls -->
+                <div class="flex items-center space-x-3">
+                    <div id="authContainer" class="flex items-center space-x-3">
+                        <!-- User Info Pill (Visible when logged in) -->
+                        <div id="userInfo" class="hidden items-center space-x-3 bg-slate-100 py-1.5 px-3 rounded-full border border-slate-200">
+                            <img id="userAvatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-slate-300">
+                            <span id="userName" class="text-xs sm:text-sm font-medium text-slate-700 max-w-[120px] sm:max-w-[160px] truncate">ユーザー</span>
+                            <button id="logoutBtn" class="text-slate-400 hover:text-rose-500 transition-colors ml-1 p-0.5" title="ログアウト">
+                                <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                            </button>
+                        </div>
+                        <!-- Login Button (Visible when logged out) -->
+                        <button id="loginBtn" class="inline-flex items-center space-x-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2 px-4 rounded-xl shadow-sm text-sm transition-all hover:border-slate-400 focus:outline-none active:scale-95">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                            </svg>
+                            <span>Googleでログイン</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Application Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- GitHub Pages Setup Notice Banner -->
+        <div id="githubPagesNotice" class="hidden bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl text-amber-800 text-sm shadow-sm relative">
+            <button onclick="document.getElementById('githubPagesNotice').classList.add('hidden')" class="absolute top-3 right-3 text-amber-500 hover:text-amber-700">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+            <div class="flex items-start space-x-3">
+                <i class="fa-solid fa-circle-exclamation text-amber-500 text-lg mt-0.5"></i>
+                <div>
+                    <strong class="font-semibold">GitHub Pagesでの認証設定について:</strong>
+                    <p class="mt-0.5 text-xs sm:text-sm">Googleログイン実行時に `auth/unauthorized-domain` エラーが出る場合は、<a href="https://console.firebase.google.com/" target="_blank" class="underline font-semibold hover:text-amber-900">Firebase Console</a> の Authentication &gt; 設定 &gt; 「承認済みドメイン」に公開ドメイン（`*.github.io`）を追加してください。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Statistics Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">未完了の提出物</p>
+                    <p id="statPending" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <i class="fa-solid fa-list-check text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">本日・明日締切</p>
+                    <p id="statUrgent" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <i class="fa-solid fa-bell text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">期限切れ</p>
+                    <p id="statOverdue" class="text-2xl font-bold text-rose-600 mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">完了済み</p>
+                    <p id="statCompleted" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i class="fa-solid fa-circle-check text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Toolbar (Search, Filters, Sort & Add Task) -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 justify-between items-stretch md:items-center">
+            <!-- Search & Filter Options -->
+            <div class="flex flex-wrap items-center gap-2 flex-1">
+                <!-- Search Input -->
+                <div class="relative flex-1 min-w-[180px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" placeholder="タイトルや科目名で検索..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all">
+                </div>
+                <!-- Category Filter -->
+                <select id="filterCategory" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    <option value="ALL">全ての種別</option>
+                    <option value="レポート">レポート</option>
+                    <option value="課題テスト">課題テスト</option>
+                    <option value="小テスト">小テスト</option>
+                    <option value="申請書類">申請書類</option>
+                    <option value="作品制作">作品制作</option>
+                    <option value="その他">その他</option>
+                </select>
+                <!-- Status Filter -->
+                <select id="filterStatus" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    <option value="PENDING">未完了のみ</option>
+                    <option value="ALL">全ステータス</option>
+                    <option value="COMPLETED">完了済みのみ</option>
+                    <option value="OVERDUE">期限切れのみ</option>
+                </select>
+                <!-- Sort Selector -->
+                <select id="sortOrder" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    <option value="DUE_ASC">締切が近い順</option>
+                    <option value="DUE_DESC">締切が遠い順</option>
+                    <option value="PRIORITY_DESC">優先度順</option>
+                    <option value="CREATED_DESC">登録日順</option>
+                </select>
+            </div>
+
+            <!-- Create New Task Button -->
+            <button id="openModalBtn" class="bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-medium py-2 px-4 rounded-xl shadow-md shadow-brand-500/20 text-sm inline-flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>新規提出物を追加</span>
+            </button>
+        </div>
+
+        <!-- Task List Display Grid -->
+        <div id="taskList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Loading Placeholder -->
+            <div class="col-span-full py-12 text-center text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-brand-500"></i>
+                <p class="text-sm">提出物データを読み込んでいます...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Dialog: Create / Edit Task -->
+    <div id="taskModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden modal-fade-in border border-slate-100">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 id="modalTitle" class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-pen-to-square text-brand-600"></i>
+                    <span>提出物の新規登録</span>
+                </h3>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form id="taskForm" class="p-6 space-y-4">
+                <input type="hidden" id="taskId">
+
+                <!-- Title Field -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskTitle">課題・提出物タイトル <span class="text-red-500">*</span></label>
+                    <input type="text" id="taskTitle" required placeholder="例: Webプログラミング演習 レポート第3回" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                </div>
+
+                <!-- Subject & Category -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskSubject">科目・コース名</label>
+                        <input type="text" id="taskSubject" placeholder="例: 情報科学基礎" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskCategory">種別</label>
+                        <select id="taskCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white">
+                            <option value="レポート">レポート</option>
+                            <option value="課題テスト">課題テスト</option>
+                            <option value="小テスト">小テスト</option>
+                            <option value="申請書類">申請書類</option>
+                            <option value="作品制作">作品制作</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Due Date & Priority -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskDueDate">提出期限日時 <span class="text-red-500">*</span></label>
+                        <input type="datetime-local" id="taskDueDate" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskPriority">優先度</label>
+                        <select id="taskPriority" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white">
+                            <option value="3">高 (急ぎ・重要)</option>
+                            <option value="2" selected>中 (標準)</option>
+                            <option value="1">低 (余裕あり)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- External URL / Submission Link -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskUrl">提出先URL / 参考リンク (任意)</label>
+                    <input type="url" id="taskUrl" placeholder="https://moodle.example.com/..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                </div>
+
+                <!-- Detailed Memo -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskMemo">詳細メモ / 指定条件 (任意)</label>
+                    <textarea id="taskMemo" rows="3" placeholder="例: PDF形式で提出。文字数は1000文字程度。" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"></textarea>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="pt-2 flex items-center justify-end space-x-3 border-t border-slate-100">
+                    <button type="button" id="cancelModalBtn" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                        キャンセル
+                    </button>
+                    <button type="submit" id="saveTaskBtn" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium shadow-md shadow-brand-500/20 transition-colors inline-flex items-center space-x-1.5">
+                        <i class="fa-solid fa-check text-xs"></i>
+                        <span>保存する</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Delete Confirmation Modal (Replaces browser confirm) -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl modal-fade-in border border-slate-100 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                <i class="fa-regular fa-trash-can text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-800">提出物データを削除</h3>
+                <p class="text-xs text-slate-500 mt-1">この登録データを削除してもよろしいですか？この操作は取り消せません。</p>
+            </div>
+            <div class="flex items-center space-x-3 pt-2">
+                <button id="cancelConfirmBtn" class="flex-1 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                    キャンセル
+                </button>
+                <button id="okConfirmBtn" class="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium shadow-md shadow-rose-500/20 transition-colors">
+                    削除する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Firebase SDK Modular Import -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            onSnapshot
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXYjwauM1X-ZgXD3bOKgdZW-NPigcZuF4",
+            authDomain: "teisyutubutu-bd00a.firebaseapp.com",
+            projectId: "teisyutubutu-bd00a",
+            storageBucket: "teisyutubutu-bd00a.firebasestorage.app",
+            messagingSenderId: "730182237148",
+            appId: "1:730182237148:web:bf133a7d2518c81f13ad19"
+        };
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Application State
+        let currentUser = null;
+        let unsubscribeTasks = null;
+        let tasksData = [];
+        let guestTasks = JSON.parse(localStorage.getItem('guest_tasks') || '[]');
+        let pendingDeleteId = null;
+
+        // DOM Elements
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+        const taskList = document.getElementById('taskList');
+        const taskModal = document.getElementById('taskModal');
+        const openModalBtn = document.getElementById('openModalBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelModalBtn = document.getElementById('cancelModalBtn');
+        const taskForm = document.getElementById('taskForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const githubPagesNotice = document.getElementById('githubPagesNotice');
+
+        // Confirm Modal Elements
+        const confirmModal = document.getElementById('confirmModal');
+        const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
+        const okConfirmBtn = document.getElementById('okConfirmBtn');
+
+        // Filter Controls
+        const searchInput = document.getElementById('searchInput');
+        const filterCategory = document.getElementById('filterCategory');
+        const filterStatus = document.getElementById('filterStatus');
+        const sortOrder = document.getElementById('sortOrder');
+
+        // Stats Elements
+        const statPending = document.getElementById('statPending');
+        const statUrgent = document.getElementById('statUrgent');
+        const statOverdue = document.getElementById('statOverdue');
+        const statCompleted = document.getElementById('statCompleted');
+
+        // Google Login Action
+        const handleLogin = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+                showToast("Googleアカウントでログインしました", "success");
+            } catch (error) {
+                console.error("Login Error:", error);
+                if (error.code === 'auth/unauthorized-domain') {
+                    githubPagesNotice.classList.remove('hidden');
+                    showToast("Firebase ConsoleでGitHub Pagesのドメイン設定が必要です", "error");
+                } else if (error.code !== 'auth/popup-closed-by-user') {
+                    showToast("ログイン処理に失敗しました: " + error.message, "error");
+                }
+            }
+        };
+
+        // Logout Action
+        const handleLogout = async () => {
+            try {
+                await signOut(auth);
+                showToast("ログアウトしました", "info");
+            } catch (error) {
+                console.error("Logout Error:", error);
+                showToast("ログアウト処理中にエラーが発生しました", "error");
+            }
+        };
+
+        loginBtn.addEventListener('click', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
+
+        // Authentication Observer
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                // User logged in
+                loginBtn.classList.add('hidden');
+                userInfo.classList.remove('hidden');
+                userInfo.classList.add('flex');
+                userAvatar.src = user.photoURL || 'https://placehold.co/40x40/e0e7ff/4f46e5?text=U';
+                userName.textContent = user.displayName || 'ユーザー';
+                
+                // Realtime sync from Firestore
+                subscribeTasks(user.uid);
+            } else {
+                // User logged out / Guest mode
+                loginBtn.classList.remove('hidden');
+                userInfo.classList.add('hidden');
+                userInfo.classList.remove('flex');
+                
+                if (unsubscribeTasks) {
+                    unsubscribeTasks();
+                    unsubscribeTasks = null;
+                }
+                
+                // LocalStorage Fallback
+                tasksData = guestTasks;
+                renderTasks();
+            }
+        });
+
+        // Firestore Realtime Subscription
+        function subscribeTasks(userId) {
+            // Document path: users/{userId}/tasks
+            const tasksRef = collection(db, 'users', userId, 'tasks');
+            
+            if (unsubscribeTasks) unsubscribeTasks();
+
+            unsubscribeTasks = onSnapshot(tasksRef, (snapshot) => {
+                tasksData = [];
+                snapshot.forEach((doc) => {
+                    tasksData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                renderTasks();
+            }, (error) => {
+                console.error("Firestore Sync Error:", error);
+                showToast("データの同期中にエラーが発生しました", "error");
+            });
+        }
+
+        // Create / Update Task Submit Handler
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const taskId = document.getElementById('taskId').value;
+            const title = document.getElementById('taskTitle').value.trim();
+            const subject = document.getElementById('taskSubject').value.trim();
+            const category = document.getElementById('taskCategory').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const priority = parseInt(document.getElementById('taskPriority').value, 10);
+            const url = document.getElementById('taskUrl').value.trim();
+            const memo = document.getElementById('taskMemo').value.trim();
+
+            if (!title || !dueDate) {
+                showToast("タイトルと提出期限は必須項目です", "error");
+                return;
+            }
+
+            const taskPayload = {
+                title,
+                subject: subject || '一般',
+                category,
+                dueDate: new Date(dueDate).toISOString(),
+                priority,
+                url: url || '',
+                memo: memo || '',
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                if (currentUser) {
+                    // Firebase Firestore storage
+                    if (taskId) {
+                        const taskRef = doc(db, 'users', currentUser.uid, 'tasks', taskId);
+                        await updateDoc(taskRef, taskPayload);
+                        showToast("提出物を更新しました", "success");
+                    } else {
+                        taskPayload.completed = false;
+                        taskPayload.createdAt = new Date().toISOString();
+                        const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+                        await addDoc(tasksRef, taskPayload);
+                        showToast("新しい提出物を追加しました", "success");
+                    }
+                } else {
+                    // Guest LocalStorage fallback
+                    if (taskId) {
+                        const idx = guestTasks.findIndex(t => t.id === taskId);
+                        if (idx !== -1) {
+                            guestTasks[idx] = { ...guestTasks[idx], ...taskPayload };
+                        }
+                    } else {
+                        const newTask = {
+                            id: 'guest_' + Date.now(),
+                            completed: false,
+                            createdAt: new Date().toISOString(),
+                            ...taskPayload
+                        };
+                        guestTasks.unshift(newTask);
+                    }
+                    localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                    tasksData = guestTasks;
+                    renderTasks();
+                    showToast(taskId ? "提出物を更新しました（ゲストモード）" : "新しい提出物を追加しました（ゲストモード）", "success");
+                }
+
+                closeModal();
+            } catch (error) {
+                console.error("Save error:", error);
+                showToast("保存処理に失敗しました: " + error.message, "error");
+            }
+        });
+
+        // Toggle Task Completion State
+        window.toggleTaskComplete = async (id, currentStatus) => {
+            try {
+                if (currentUser) {
+                    const taskRef = doc(db, 'users', currentUser.uid, 'tasks', id);
+                    await updateDoc(taskRef, {
+                        completed: !currentStatus,
+                        completedAt: !currentStatus ? new Date().toISOString() : null
+                    });
+                } else {
+                    const idx = guestTasks.findIndex(t => t.id === id);
+                    if (idx !== -1) {
+                        guestTasks[idx].completed = !currentStatus;
+                        guestTasks[idx].completedAt = !currentStatus ? new Date().toISOString() : null;
+                        localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                        tasksData = guestTasks;
+                        renderTasks();
+                    }
+                }
+                showToast(!currentStatus ? "提出完了にしました！ 🎉" : "未完了状態に戻しました", "info");
+            } catch (error) {
+                console.error("Toggle complete error:", error);
+                showToast("ステータス更新に失敗しました", "error");
+            }
+        };
+
+        // Request Delete Task Modal
+        window.deleteTask = (id) => {
+            pendingDeleteId = id;
+            confirmModal.classList.remove('hidden');
+        };
+
+        cancelConfirmBtn.addEventListener('click', () => {
+            pendingDeleteId = null;
+            confirmModal.classList.add('hidden');
+        });
+
+        okConfirmBtn.addEventListener('click', async () => {
+            if (!pendingDeleteId) return;
+            const id = pendingDeleteId;
+            confirmModal.classList.add('hidden');
+
+            try {
+                if (currentUser) {
+                    const taskRef = doc(db, 'users', currentUser.uid, 'tasks', id);
+                    await deleteDoc(taskRef);
+                } else {
+                    guestTasks = guestTasks.filter(t => t.id !== id);
+                    localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                    tasksData = guestTasks;
+                    renderTasks();
+                }
+                showToast("提出物データを削除しました", "info");
+            } catch (error) {
+                console.error("Delete task error:", error);
+                showToast("削除処理に失敗しました", "error");
+            } finally {
+                pendingDeleteId = null;
+            }
+        });
+
+        // Open Modal for Edit
+        window.editTask = (id) => {
+            const task = tasksData.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('taskId').value = task.id;
+            document.getElementById('taskTitle').value = task.title || '';
+            document.getElementById('taskSubject').value = task.subject || '';
+            document.getElementById('taskCategory').value = task.category || 'レポート';
+            
+            if (task.dueDate) {
+                const dateObj = new Date(task.dueDate);
+                const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                document.getElementById('taskDueDate').value = localISO;
+            }
+
+            document.getElementById('taskPriority').value = task.priority || 2;
+            document.getElementById('taskUrl').value = task.url || '';
+            document.getElementById('taskMemo').value = task.memo || '';
+
+            modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square text-brand-600"></i> <span>提出物の編集</span>`;
+            taskModal.classList.remove('hidden');
+        };
+
+        // Render Task Cards & Apply Filter / Sorting
+        function renderTasks() {
+            const query = searchInput.value.toLowerCase();
+            const cat = filterCategory.value;
+            const status = filterStatus.value;
+            const sort = sortOrder.value;
+
+            const now = new Date();
+
+            // Filter logic
+            let filtered = tasksData.filter(task => {
+                const matchesSearch = (task.title || '').toLowerCase().includes(query) || 
+                                      (task.subject || '').toLowerCase().includes(query) ||
+                                      (task.memo || '').toLowerCase().includes(query);
+                
+                const matchesCat = (cat === 'ALL') || (task.category === cat);
+                
+                let matchesStatus = true;
+                const dueDate = new Date(task.dueDate);
+                const isOverdue = !task.completed && dueDate < now;
+
+                if (status === 'PENDING') matchesStatus = !task.completed;
+                else if (status === 'COMPLETED') matchesStatus = task.completed;
+                else if (status === 'OVERDUE') matchesStatus = isOverdue;
+
+                return matchesSearch && matchesCat && matchesStatus;
+            });
+
+            // Sort logic
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.dueDate).getTime();
+                const dateB = new Date(b.dueDate).getTime();
+
+                if (sort === 'DUE_ASC') return dateA - dateB;
+                if (sort === 'DUE_DESC') return dateB - dateA;
+                if (sort === 'PRIORITY_DESC') return (b.priority || 2) - (a.priority || 2);
+                if (sort === 'CREATED_DESC') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                return 0;
+            });
+
+            // Refresh Dashboard Statistics
+            updateStats(now);
+
+            // Empty State Display
+            if (filtered.length === 0) {
+                taskList.innerHTML = `
+                    <div class="col-span-full py-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center p-6">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-folder-open text-xl"></i>
+                        </div>
+                        <h4 class="text-sm font-semibold text-slate-700">表示できる提出物はありません</h4>
+                        <p class="text-xs text-slate-500 mt-1">「新規提出物を追加」ボタンから登録してください。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render Task Cards Grid
+            taskList.innerHTML = filtered.map(task => {
+                const dueDate = new Date(task.dueDate);
+                const diffTime = dueDate - now;
+                const isOverdue = !task.completed && diffTime < 0;
+                
+                let timeBadge = '';
+                let statusBorderClass = 'border-slate-200';
+
+                if (task.completed) {
+                    timeBadge = `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-2.5 py-0.5 rounded-full font-medium inline-flex items-center space-x-1"><i class="fa-solid fa-check text-[10px]"></i><span>提出完了</span></span>`;
+                } else if (isOverdue) {
+                    timeBadge = `<span class="bg-rose-50 text-rose-700 border border-rose-200 text-xs px-2.5 py-0.5 rounded-full font-semibold inline-flex items-center space-x-1"><i class="fa-solid fa-circle-exclamation text-[10px]"></i><span>期限切れ</span></span>`;
+                    statusBorderClass = 'border-rose-300 bg-rose-50/10';
+                } else {
+                    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHours / 24);
+
+                    if (diffHours <= 24) {
+                        timeBadge = `<span class="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2.5 py-0.5 rounded-full font-semibold animate-pulse inline-flex items-center space-x-1"><i class="fa-solid fa-clock text-[10px]"></i><span>残り ${diffHours} 時間</span></span>`;
+                        statusBorderClass = 'border-amber-300';
+                    } else {
+                        timeBadge = `<span class="bg-slate-100 text-slate-600 border border-slate-200 text-xs px-2.5 py-0.5 rounded-full font-medium">残り ${diffDays} 日</span>`;
+                    }
+                }
+
+                const formattedDueDate = dueDate.toLocaleString('ja-JP', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    weekday: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                return `
+                    <div class="bg-white rounded-2xl border ${statusBorderClass} p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative group">
+                        <div>
+                            <!-- Category Header -->
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <div class="flex items-center space-x-1.5 flex-wrap">
+                                    <span class="bg-brand-50 text-brand-700 font-semibold text-[11px] px-2 py-0.5 rounded-md">${escapeHtml(task.subject || '一般')}</span>
+                                    <span class="bg-slate-100 text-slate-600 text-[11px] px-2 py-0.5 rounded-md">${escapeHtml(task.category || 'その他')}</span>
+                                </div>
+                                ${timeBadge}
+                            </div>
+
+                            <!-- Title -->
+                            <h3 class="text-base font-bold text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''} mb-2 leading-snug">
+                                ${escapeHtml(task.title)}
+                            </h3>
+
+                            <!-- Due Date -->
+                            <div class="flex items-center text-xs text-slate-600 mb-3 space-x-1.5">
+                                <i class="fa-regular fa-calendar-check text-brand-600"></i>
+                                <span class="font-medium">${formattedDueDate}</span>
+                            </div>
+
+                            <!-- Memo text -->
+                            ${task.memo ? `
+                                <p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl mb-3 border border-slate-100 whitespace-pre-wrap">${escapeHtml(task.memo)}</p>
+                            ` : ''}
+
+                            <!-- Submission Link -->
+                            ${task.url ? `
+                                <a href="${escapeHtml(task.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-1 text-xs text-brand-600 hover:text-brand-700 hover:underline mb-3 truncate max-w-full">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                    <span class="truncate">提出先・参照リンクを開く</span>
+                                </a>
+                            ` : ''}
+                        </div>
+
+                        <!-- Card Footer Controls -->
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between mt-2">
+                            <button onclick="toggleTaskComplete('${task.id}', ${task.completed})" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${task.completed ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20'}">
+                                <i class="fa-solid ${task.completed ? 'fa-rotate-left' : 'fa-check'} text-xs"></i>
+                                <span>${task.completed ? '未完了に戻す' : '完了にする'}</span>
+                            </button>
+
+                            <div class="flex items-center space-x-1">
+                                <button onclick="downloadIcs('${task.id}')" title="Googleカレンダー/iCal用ファイル出力" class="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                    <i class="fa-regular fa-calendar-plus text-sm"></i>
+                                </button>
+                                <button onclick="editTask('${task.id}')" title="編集" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
+                                    <i class="fa-solid fa-pen text-sm"></i>
+                                </button>
+                                <button onclick="deleteTask('${task.id}')" title="削除" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                    <i class="fa-regular fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update Dashboard Summary Stats
+        function updateStats(now) {
+            let pendingCount = 0;
+            let urgentCount = 0;
+            let overdueCount = 0;
+            let completedCount = 0;
+
+            const next24h = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+
+            tasksData.forEach(t => {
+                if (t.completed) {
+                    completedCount++;
+                } else {
+                    pendingCount++;
+                    const dueDate = new Date(t.dueDate);
+                    if (dueDate < now) {
+                        overdueCount++;
+                    } else if (dueDate <= next24h) {
+                        urgentCount++;
+                    }
+                }
+            });
+
+            statPending.textContent = pendingCount;
+            statUrgent.textContent = urgentCount;
+            statOverdue.textContent = overdueCount;
+            statCompleted.textContent = completedCount;
+        }
+
+        // Export Task to iCalendar (.ics) File
+        window.downloadIcs = (id) => {
+            const task = tasksData.find(t => t.id === id);
+            if (!task) return;
+
+            const dueDate = new Date(task.dueDate);
+            const startDate = new Date(dueDate.getTime() - 60 * 60 * 1000); // Default 1 hr duration
+
+            const formatICSDate = (d) => d.toISOString().replace(/-|:|\.\d+/g, "");
+
+            const icsContent = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//Submission Reminder App//JA",
+                "BEGIN:VEVENT",
+                `UID:task-${task.id}@reminder`,
+                `DTSTAMP:${formatICSDate(new Date())}`,
+                `DTSTART:${formatICSDate(startDate)}`,
+                `DTEND:${formatICSDate(dueDate)}`,
+                `SUMMARY:【提出物締切】${task.title}`,
+                `DESCRIPTION:${(task.subject ? '科目: ' + task.subject + '\\n' : '') + (task.memo ? 'メモ: ' + task.memo : '')}`,
+                `LOCATION:${task.url || ''}`,
+                "STATUS:CONFIRMED",
+                "END:VEVENT",
+                "END:VCALENDAR"
+            ].join("\r\n");
+
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.setAttribute('download', `提出物_${task.title}.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("カレンダー連携用ファイル(.ics)をダウンロードしました", "success");
+        };
+
+        // Modal Helpers
+        function openModal() {
+            document.getElementById('taskId').value = '';
+            taskForm.reset();
+            
+            // Default due date: Tomorrow 23:59
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(23, 59, 0, 0);
+            const localISO = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            document.getElementById('taskDueDate').value = localISO;
+
+            modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square text-brand-600"></i> <span>提出物の新規登録</span>`;
+            taskModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            taskModal.classList.add('hidden');
+        }
+
+        openModalBtn.addEventListener('click', openModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelModalBtn.addEventListener('click', closeModal);
+
+        // Filter Change Listeners
+        searchInput.addEventListener('input', renderTasks);
+        filterCategory.addEventListener('change', renderTasks);
+        filterStatus.addEventListener('change', renderTasks);
+        sortOrder.addEventListener('change', renderTasks);
+
+        // HTML Escape Utility
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Custom Toast Notification System
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const bgMap = {
+                success: 'bg-emerald-800 text-white',
+                error: 'bg-rose-800 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+
+            const iconMap = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-exclamation',
+                info: 'fa-circle-info'
+            };
+
+            toast.className = `pointer-events-auto flex items-center space-x-2 py-2.5 px-4 rounded-xl shadow-lg text-xs sm:text-sm font-medium transition-all duration-300 opacity-0 transform translate-y-2 ${bgMap[type] || bgMap.info}`;
+            toast.innerHTML = `<i class="fa-solid ${iconMap[type]} text-base"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Automatically update countdown timers every minute
+        setInterval(renderTasks, 60000);
+    </script>
+</body>
+</html>
