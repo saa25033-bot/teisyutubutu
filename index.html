@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icon Library -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Microsoft Authentication Library (MSAL.js) CDN -->
+    <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
     <!-- Google Fonts Inter & Noto Sans JP -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -365,21 +367,30 @@
 
                 <!-- Tab Content 2: Microsoft Graph API SSO Integration -->
                 <div id="tabGraphContent" class="space-y-4 hidden">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
-                        <div class="font-semibold text-slate-800 flex items-center space-x-1">
-                            <i class="fa-brands fa-microsoft text-indigo-600"></i>
-                            <span>学校・組織のMicrosoftアカウントと接続</span>
+                    <div class="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100 text-xs text-slate-700 space-y-1.5">
+                        <div class="font-bold text-indigo-900 flex items-center space-x-1.5">
+                            <i class="fa-brands fa-microsoft text-indigo-600 text-sm"></i>
+                            <span>学校・組織のMicrosoftアカウントと連携</span>
                         </div>
-                        <p>Azure ADアプリのClient IDを設定するか、Microsoft Graph API経由で `/education/me/assignments` から同期します。</p>
+                        <p class="text-slate-600 leading-relaxed">
+                            Azure ADアプリ (Microsoft Graph API) に接続し、Teamsの教育課題 (`/education/me/assignments`) を自動取得します。
+                        </p>
+                        <div class="text-[11px] text-indigo-700 bg-white/80 p-2 rounded-lg border border-indigo-100">
+                            💡 <strong>Client IDが未入力の場合:</strong> そのまま実行すると動作テスト用のTeams連携課題が自動で取り込まれます。
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Azure Client ID (任意)</label>
-                        <input type="text" id="msClientId" placeholder="YOUR-AZURE-CLIENT-ID (未入力の場合は標準設定)" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Azure App Client ID (任意)</label>
+                        <input type="text" id="msClientId" placeholder="例: 00000000-0000-0000-0000-000000000000" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
                     </div>
-                    <button id="btnMsGraphSync" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-semibold shadow-md transition-all flex items-center justify-center space-x-2">
+                    <button id="btnMsGraphSync" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center space-x-2">
                         <i class="fa-brands fa-microsoft"></i>
-                        <span>Microsoftアカウントで同期を実行</span>
+                        <span id="msSyncBtnText">Microsoftアカウントで課題を同期</span>
                     </button>
+                    <div id="msSyncStatus" class="hidden text-center text-xs text-slate-500 py-1">
+                        <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 mr-1"></i>
+                        <span id="msSyncStatusText">Microsoft Graphに接続中...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -562,12 +573,174 @@
             }
         });
 
-        // Microsoft Graph Sync Placeholder / SSO Action
-        btnMsGraphSync.addEventListener('click', () => {
-            showToast("Microsoft Graph APIに接続中... (学校のアカウント認証画面へ遷移します)", "info");
-            setTimeout(() => {
-                showToast("Teams課題の同期機能を初期化しました", "success");
-            }, 1500);
+        // Microsoft Graph Sync Real Integration & Fallback Mock Handler
+        btnMsGraphSync.addEventListener('click', async () => {
+            const clientIdInput = document.getElementById('msClientId').value.trim();
+            const msSyncStatus = document.getElementById('msSyncStatus');
+            const msSyncStatusText = document.getElementById('msSyncStatusText');
+            const msSyncBtnText = document.getElementById('msSyncBtnText');
+
+            btnMsGraphSync.disabled = true;
+            btnMsGraphSync.classList.add('opacity-60', 'cursor-not-allowed');
+            msSyncStatus.classList.remove('hidden');
+
+            // Scenario 1: Actual Microsoft Graph API Single Sign-On Flow
+            if (clientIdInput) {
+                try {
+                    msSyncStatusText.textContent = "Microsoft ログイン画面を呼び出しています...";
+                    
+                    const msalConfig = {
+                        auth: {
+                            clientId: clientIdInput,
+                            authority: "https://login.microsoftonline.com/common",
+                            redirectUri: window.location.href.split('#')[0].split('?')[0]
+                        },
+                        cache: {
+                            cacheLocation: "sessionStorage",
+                            storeAuthStateInCookie: false
+                        }
+                    };
+
+                    const msalInstance = new window.msal.PublicClientApplication(msalConfig);
+                    await msalInstance.initialize();
+
+                    const loginRequest = {
+                        scopes: ["User.Read", "EduAssignments.Read", "EduAssignments.ReadBasic"]
+                    };
+
+                    msSyncStatusText.textContent = "アカウント認証の完了を待機中...";
+                    const loginResponse = await msalInstance.loginPopup(loginRequest);
+                    
+                    msSyncStatusText.textContent = "Teamsから課題一覧を取得中...";
+                    const graphEndpoint = "https://graph.microsoft.com/v1.0/education/me/assignments";
+                    
+                    const graphResponse = await fetch(graphEndpoint, {
+                        headers: {
+                            Authorization: `Bearer ${loginResponse.accessToken}`
+                        }
+                    });
+
+                    if (graphResponse.ok) {
+                        const data = await graphResponse.json();
+                        const assignments = data.value || [];
+                        let importedCount = 0;
+
+                        for (const assign of assignments) {
+                            const taskPayload = {
+                                title: assign.displayName || "Teams課題",
+                                subject: "Teams同期",
+                                category: "Teams課題",
+                                dueDate: assign.dueDateTime ? new Date(assign.dueDateTime).toISOString() : new Date(Date.now() + 86400000 * 3).toISOString(),
+                                priority: 2,
+                                url: assign.webUrl || '',
+                                memo: assign.instructions?.content ? assign.instructions.content.replace(/<[^>]*>?/gm, '') : 'Microsoft Teamsより同期',
+                                completed: assign.status === "submitted" || assign.status === "completed",
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString()
+                            };
+
+                            if (currentUser) {
+                                const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+                                await addDoc(tasksRef, taskPayload);
+                            } else {
+                                guestTasks.unshift({ id: 'ms_' + (assign.id || Date.now()), ...taskPayload });
+                            }
+                            importedCount++;
+                        }
+
+                        if (!currentUser) {
+                            localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                            tasksData = guestTasks;
+                            renderTasks();
+                        }
+
+                        showToast(`Microsoft Teamsから ${importedCount} 件の課題を同期しました！ 🎉`, "success");
+                        teamsModal.classList.add('hidden');
+                    } else {
+                        throw new Error(`Graph APIレスポンスエラー (${graphResponse.status})`);
+                    }
+
+                } catch (error) {
+                    console.error("Microsoft Graph Sync Error:", error);
+                    showToast(`API接続エラー: ${error.message || '認証に失敗しました'}`, "error");
+                } finally {
+                    btnMsGraphSync.disabled = false;
+                    btnMsGraphSync.classList.remove('opacity-60', 'cursor-not-allowed');
+                    msSyncStatus.classList.add('hidden');
+                }
+            } 
+            // Scenario 2: Demo Simulation Mode (No Client ID required)
+            else {
+                msSyncStatusText.textContent = "Teams課題サーバーとシミュレーション同期中...";
+                
+                setTimeout(async () => {
+                    const mockTeamsAssignments = [
+                        {
+                            title: "【Teams同期】アルゴリズムとデータ構造 最終課題",
+                            subject: "アルゴリズム論",
+                            category: "Teams課題",
+                            dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days later
+                            priority: 3,
+                            url: "https://teams.microsoft.com",
+                            memo: "Teamsチャネルの「課題」タブから提出してください。ソートアルゴリズムの計算量に関するレポートです。"
+                        },
+                        {
+                            title: "【Teams同期】英語プレゼンテーション スライド提出",
+                            subject: "アカデミック英語B",
+                            category: "Teams課題",
+                            dueDate: new Date(Date.now() + 86400000 * 5).toISOString(), // 5 days later
+                            priority: 2,
+                            url: "https://teams.microsoft.com",
+                            memo: "PowerPoint形式（.pptx）で提出。発表時間は5分間です。"
+                        },
+                        {
+                            title: "【Teams同期】データベース演習 クエリ回答提出",
+                            subject: "データベース論",
+                            category: "Teams課題",
+                            dueDate: new Date(Date.now() + 86400000 * 1).toISOString(), // 1 day later
+                            priority: 2,
+                            url: "https://teams.microsoft.com",
+                            memo: "SQL文をテキストファイルにまとめて送信してください。"
+                        }
+                    ];
+
+                    try {
+                        let count = 0;
+                        for (const taskPayload of mockTeamsAssignments) {
+                            const fullPayload = {
+                                ...taskPayload,
+                                completed: false,
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString()
+                            };
+
+                            if (currentUser) {
+                                const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+                                await addDoc(tasksRef, taskPayload);
+                            } else {
+                                guestTasks.unshift({ id: 'teams_demo_' + Date.now() + '_' + count, ...fullPayload });
+                            }
+                            count++;
+                        }
+
+                        if (!currentUser) {
+                            localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                            tasksData = guestTasks;
+                            renderTasks();
+                        }
+
+                        showToast(`Teamsから ${count} 件の課題を同期・登録しました！ 🚀`, "success");
+                        teamsModal.classList.add('hidden');
+                    } catch (err) {
+                        console.error("Demo sync error:", err);
+                        showToast("デモ同期処理に失敗しました", "error");
+                    } finally {
+                        btnMsGraphSync.disabled = false;
+                        btnMsGraphSync.classList.remove('opacity-60', 'cursor-not-allowed');
+                        msSyncStatus.classList.add('hidden');
+                    }
+                }, 1200);
+            }
         });
 
         // Firestore Realtime Subscription
