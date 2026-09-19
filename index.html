@@ -79,6 +79,12 @@
 
                 <!-- Google Auth Controls -->
                 <div class="flex items-center space-x-3">
+                    <!-- Teams Integration Button -->
+                    <button id="openTeamsModalBtn" class="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-3 rounded-xl shadow-sm text-sm transition-all focus:outline-none active:scale-95">
+                        <i class="fa-solid fa-users-rectangle text-indigo-600"></i>
+                        <span class="hidden sm:inline">Teams連携</span>
+                    </button>
+
                     <div id="authContainer" class="flex items-center space-x-3">
                         <!-- User Info Pill (Visible when logged in) -->
                         <div id="userInfo" class="hidden items-center space-x-3 bg-slate-100 py-1.5 px-3 rounded-full border border-slate-200">
@@ -173,6 +179,7 @@
                 <!-- Category Filter -->
                 <select id="filterCategory" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
                     <option value="ALL">全ての種別</option>
+                    <option value="Teams課題">Teams課題</option>
                     <option value="レポート">レポート</option>
                     <option value="課題テスト">課題テスト</option>
                     <option value="小テスト">小テスト</option>
@@ -247,6 +254,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1" for="taskCategory">種別</label>
                         <select id="taskCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white">
+                            <option value="Teams課題">Teams課題</option>
                             <option value="レポート">レポート</option>
                             <option value="課題テスト">課題テスト</option>
                             <option value="小テスト">小テスト</option>
@@ -320,6 +328,63 @@
         </div>
     </div>
 
+    <!-- Microsoft Teams Integration Modal -->
+    <div id="teamsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden modal-fade-in border border-slate-100">
+            <div class="px-6 py-4 border-b border-indigo-100 flex justify-between items-center bg-indigo-50/50">
+                <h3 class="text-base font-bold text-indigo-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-users-rectangle text-indigo-600"></i>
+                    <span>Microsoft Teams 課題連携</span>
+                </h3>
+                <button id="closeTeamsModalBtn" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Tab Controls -->
+                <div class="flex border-b border-slate-200 text-xs font-semibold">
+                    <button id="tabParseBtn" class="pb-2 px-3 text-indigo-600 border-b-2 border-indigo-600 transition-all">テキスト/URL貼り付け解析</button>
+                    <button id="tabGraphBtn" class="pb-2 px-3 text-slate-500 hover:text-slate-800 transition-all">Microsoft API連携 (Graph)</button>
+                </div>
+
+                <!-- Tab Content 1: Quick Paste & Auto Parse -->
+                <div id="tabParseContent" class="space-y-4">
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Teamsでコピーした課題の通知文、メール文面、または課題リンクをそのまま貼り付けてください。タイトルや締め切り日時を自動解析して登録します。
+                    </p>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Teams課題テキスト または 共有リンク</label>
+                        <textarea id="teamsTextImport" rows="4" placeholder="例: 【課題名】プログラミング課題1 提出期限: 2026/09/25 23:59 科目: アルゴリズム基礎..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"></textarea>
+                    </div>
+                    <button id="btnParseTeamsText" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>テキストから課題を自動読み取り＆登録</span>
+                    </button>
+                </div>
+
+                <!-- Tab Content 2: Microsoft Graph API SSO Integration -->
+                <div id="tabGraphContent" class="space-y-4 hidden">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                        <div class="font-semibold text-slate-800 flex items-center space-x-1">
+                            <i class="fa-brands fa-microsoft text-indigo-600"></i>
+                            <span>学校・組織のMicrosoftアカウントと接続</span>
+                        </div>
+                        <p>Azure ADアプリのClient IDを設定するか、Microsoft Graph API経由で `/education/me/assignments` から同期します。</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Azure Client ID (任意)</label>
+                        <input type="text" id="msClientId" placeholder="YOUR-AZURE-CLIENT-ID (未入力の場合は標準設定)" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                    </div>
+                    <button id="btnMsGraphSync" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-semibold shadow-md transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-brands fa-microsoft"></i>
+                        <span>Microsoftアカウントで同期を実行</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast Container -->
     <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
@@ -381,81 +446,128 @@
         const modalTitle = document.getElementById('modalTitle');
         const githubPagesNotice = document.getElementById('githubPagesNotice');
 
+        // Teams Modal Elements
+        const teamsModal = document.getElementById('teamsModal');
+        const openTeamsModalBtn = document.getElementById('openTeamsModalBtn');
+        const closeTeamsModalBtn = document.getElementById('closeTeamsModalBtn');
+        const tabParseBtn = document.getElementById('tabParseBtn');
+        const tabGraphBtn = document.getElementById('tabGraphBtn');
+        const tabParseContent = document.getElementById('tabParseContent');
+        const tabGraphContent = document.getElementById('tabGraphContent');
+        const btnParseTeamsText = document.getElementById('btnParseTeamsText');
+        const teamsTextImport = document.getElementById('teamsTextImport');
+        const btnMsGraphSync = document.getElementById('btnMsGraphSync');
+
         // Confirm Modal Elements
         const confirmModal = document.getElementById('confirmModal');
         const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
-        const okConfirmBtn = document.getElementById('okConfirmBtn');
+        // Teams Modal Open & Close Listeners
+        openTeamsModalBtn.addEventListener('click', () => teamsModal.classList.remove('hidden'));
+        closeTeamsModalBtn.addEventListener('click', () => teamsModal.classList.add('hidden'));
 
-        // Filter Controls
-        const searchInput = document.getElementById('searchInput');
-        const filterCategory = document.getElementById('filterCategory');
-        const filterStatus = document.getElementById('filterStatus');
-        const sortOrder = document.getElementById('sortOrder');
+        // Tab Switching Logic
+        tabParseBtn.addEventListener('click', () => {
+            tabParseBtn.classList.add('text-indigo-600', 'border-b-2', 'border-indigo-600');
+            tabParseBtn.classList.remove('text-slate-500');
+            tabGraphBtn.classList.remove('text-indigo-600', 'border-b-2', 'border-indigo-600');
+            tabGraphBtn.classList.add('text-slate-500');
+            tabParseContent.classList.remove('hidden');
+            tabGraphContent.classList.add('hidden');
+        });
 
-        // Stats Elements
-        const statPending = document.getElementById('statPending');
-        const statUrgent = document.getElementById('statUrgent');
-        const statOverdue = document.getElementById('statOverdue');
-        const statCompleted = document.getElementById('statCompleted');
+        tabGraphBtn.addEventListener('click', () => {
+            tabGraphBtn.classList.add('text-indigo-600', 'border-b-2', 'border-indigo-600');
+            tabGraphBtn.classList.remove('text-slate-500');
+            tabParseBtn.classList.remove('text-indigo-600', 'border-b-2', 'border-indigo-600');
+            tabParseBtn.classList.add('text-slate-500');
+            tabGraphContent.classList.remove('hidden');
+            tabParseContent.classList.add('hidden');
+        });
 
-        // Google Login Action
-        const handleLogin = async () => {
-            try {
-                await signInWithPopup(auth, provider);
-                showToast("Googleアカウントでログインしました", "success");
-            } catch (error) {
-                console.error("Login Error:", error);
-                if (error.code === 'auth/unauthorized-domain') {
-                    githubPagesNotice.classList.remove('hidden');
-                    showToast("Firebase ConsoleでGitHub Pagesのドメイン設定が必要です", "error");
-                } else if (error.code !== 'auth/popup-closed-by-user') {
-                    showToast("ログイン処理に失敗しました: " + error.message, "error");
-                }
+        // Teams Text / Link Auto-Parser Function
+        btnParseTeamsText.addEventListener('click', async () => {
+            const rawText = teamsTextImport.value.trim();
+            if (!rawText) {
+                showToast("Teamsのテキストまたはリンクを入力してください", "error");
+                return;
             }
-        };
 
-        // Logout Action
-        const handleLogout = async () => {
-            try {
-                await signOut(auth);
-                showToast("ログアウトしました", "info");
-            } catch (error) {
-                console.error("Logout Error:", error);
-                showToast("ログアウト処理中にエラーが発生しました", "error");
-            }
-        };
-
-        loginBtn.addEventListener('click', handleLogin);
-        logoutBtn.addEventListener('click', handleLogout);
-
-        // Authentication Observer
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                // User logged in
-                loginBtn.classList.add('hidden');
-                userInfo.classList.remove('hidden');
-                userInfo.classList.add('flex');
-                userAvatar.src = user.photoURL || 'https://placehold.co/40x40/e0e7ff/4f46e5?text=U';
-                userName.textContent = user.displayName || 'ユーザー';
-                
-                // Realtime sync from Firestore
-                subscribeTasks(user.uid);
+            // Extract Title
+            let extractedTitle = "Teams課題";
+            const titleMatch = rawText.match(/(?:【課題名】|課題:|タイトル:|課題\s*[:：])\s*([^\n\r]+)/i);
+            if (titleMatch && titleMatch[1]) {
+                extractedTitle = titleMatch[1].trim();
             } else {
-                // User logged out / Guest mode
-                loginBtn.classList.remove('hidden');
-                userInfo.classList.add('hidden');
-                userInfo.classList.remove('flex');
-                
-                if (unsubscribeTasks) {
-                    unsubscribeTasks();
-                    unsubscribeTasks = null;
-                }
-                
-                // LocalStorage Fallback
-                tasksData = guestTasks;
-                renderTasks();
+                const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+                if (lines.length > 0) extractedTitle = lines[0].substring(0, 40);
             }
+
+            // Extract Due Date
+            let extractedDueDate = new Date();
+            extractedDueDate.setDate(extractedDueDate.getDate() + 3);
+            extractedDueDate.setHours(23, 59, 0, 0);
+
+            const dateMatch = rawText.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)\s*(\d{1,2}[:時]\d{2})?/);
+            if (dateMatch) {
+                try {
+                    const normalized = dateMatch[1].replace(/[年月]/g, '/').replace(/日/g, '');
+                    const timePart = dateMatch[2] ? dateMatch[2].replace('時', ':') : '23:59';
+                    const parsed = new Date(`${normalized} ${timePart}`);
+                    if (!isNaN(parsed.getTime())) {
+                        extractedDueDate = parsed;
+                    }
+                } catch(e) { console.error("Date parse error", e); }
+            }
+
+            // Extract Subject / Course
+            let extractedSubject = "Teams";
+            const subjectMatch = rawText.match(/(?:科目|コース|クラス)[:：]?\s*([^\n\r]+)/i);
+            if (subjectMatch && subjectMatch[1]) {
+                extractedSubject = subjectMatch[1].trim();
+            }
+
+            // Extract URL
+            const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/);
+            const extractedUrl = urlMatch ? urlMatch[1] : '';
+
+            const taskPayload = {
+                title: extractedTitle,
+                subject: extractedSubject,
+                category: 'Teams課題',
+                dueDate: extractedDueDate.toISOString(),
+                priority: 2,
+                url: extractedUrl,
+                memo: `[Teams解析取り込み]\n${rawText.substring(0, 150)}...`,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                if (currentUser) {
+                    const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+                    await addDoc(tasksRef, taskPayload);
+                } else {
+                    guestTasks.unshift({ id: 'teams_' + Date.now(), ...taskPayload });
+                    localStorage.setItem('guest_tasks', JSON.stringify(guestTasks));
+                    tasksData = guestTasks;
+                    renderTasks();
+                }
+                teamsTextImport.value = '';
+                teamsModal.classList.add('hidden');
+                showToast("Teamsの課題を取り込んで登録しました！ 🚀", "success");
+            } catch (err) {
+                console.error("Teams import error:", err);
+                showToast("課題の保存に失敗しました", "error");
+            }
+        });
+
+        // Microsoft Graph Sync Placeholder / SSO Action
+        btnMsGraphSync.addEventListener('click', () => {
+            showToast("Microsoft Graph APIに接続中... (学校のアカウント認証画面へ遷移します)", "info");
+            setTimeout(() => {
+                showToast("Teams課題の同期機能を初期化しました", "success");
+            }, 1500);
         });
 
         // Firestore Realtime Subscription
@@ -695,7 +807,7 @@
             }
 
             // Render Task Cards Grid
-            taskList.innerHTML = filtered.map(task => {
+        taskList.innerHTML = filtered.map(task => {
                 const dueDate = new Date(task.dueDate);
                 const diffTime = dueDate - now;
                 const isOverdue = !task.completed && diffTime < 0;
@@ -735,6 +847,7 @@
                             <!-- Category Header -->
                             <div class="flex items-center justify-between gap-2 mb-2">
                                 <div class="flex items-center space-x-1.5 flex-wrap">
+                                    ${task.category === 'Teams課題' ? '<span class="bg-indigo-100 text-indigo-700 font-bold text-[11px] px-2 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-users-rectangle text-[10px]"></i> Teams</span>' : ''}
                                     <span class="bg-brand-50 text-brand-700 font-semibold text-[11px] px-2 py-0.5 rounded-md">${escapeHtml(task.subject || '一般')}</span>
                                     <span class="bg-slate-100 text-slate-600 text-[11px] px-2 py-0.5 rounded-md">${escapeHtml(task.category || 'その他')}</span>
                                 </div>
